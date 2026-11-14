@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClauseGuard — Hybrid On-Device Contract Auditor</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">CG</div>
+          <div>
+            <h1>ClauseGuard</h1>
+            <p class="subtitle">
+              On-Device Contract Risk Auditor &amp; Cloud Redline Assistant · Firebase AI Logic
+            </p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button id="btn-open-config" class="btn btn-secondary" type="button">
+            Firebase Config
+          </button>
+          <button id="btn-load-history" class="btn btn-secondary" type="button">
+            Refresh Firestore Log
+          </button>
+        </div>
+      </header>
+
+      <section class="telemetry-bar" aria-label="Hybrid Inference Telemetry">
+        <div class="telemetry-item">
+          <span class="telemetry-label">On-Device Nano</span>
+          <span id="badge-nano-status" class="pill pill-neutral">Checking...</span>
+          <button id="btn-download-nano" class="btn btn-xs hidden" type="button">
+            Download Model
+          </button>
+          <span id="nano-progress" class="telemetry-sub hidden"></span>
+        </div>
+
+        <div class="telemetry-item">
+          <label class="telemetry-label" for="select-inference-mode">Inference Mode</label>
+          <select id="select-inference-mode" class="select-compact">
+            <option value="PREFER_ON_DEVICE" selected>PREFER_ON_DEVICE (Hybrid)</option>
+            <option value="ONLY_ON_DEVICE">ONLY_ON_DEVICE (Zero Egress)</option>
+            <option value="PREFER_IN_CLOUD">PREFER_IN_CLOUD (Deep Redline)</option>
+            <option value="ONLY_IN_CLOUD">ONLY_IN_CLOUD (Cloud Gemini)</option>
+          </select>
+        </div>
+
+        <div class="telemetry-item">
+          <span class="telemetry-label">App Check</span>
+          <span id="badge-appcheck" class="pill pill-neutral">Checking...</span>
+        </div>
+
+        <div class="telemetry-item">
+          <span class="telemetry-label">Last Execution</span>
+          <span id="badge-exec-source" class="pill pill-neutral">—</span>
+        </div>
+
+        <div class="telemetry-item">
+          <span class="telemetry-label">Latency</span>
+          <span id="metric-latency" class="telemetry-value">—</span>
+        </div>
+
+        <div class="telemetry-item telemetry-privacy">
+          <span class="telemetry-label">Cloud PII Exposure</span>
+          <span id="badge-pii-exposure" class="pill pill-safe">0 bytes raw PII sent</span>
+        </div>
+      </section>
+
+      <main class="workspace">
+        <section class="panel panel-input">
+          <div class="panel-header">
+            <div>
+              <h2>1. Contract Input &amp; Local Privacy Shield</h2>
+              <p class="panel-desc">
+                Paste a contract or load a trap-laden sample. PII is masked locally in your browser before any cloud fallback.
+              </p>
+            </div>
+          </div>
+
+          <div class="sample-bar">
+            <span class="sample-label">Samples:</span>
+            <button class="btn btn-chip" type="button" data-sample="mutual-nda">Mutual NDA</button>
+            <button class="btn btn-chip" type="button" data-sample="saas-msa">SaaS MSA</button>
+            <button class="btn btn-chip" type="button" data-sample="contractor">Contractor</button>
+            <button class="btn btn-chip" type="button" data-sample="commercial-lease">Commercial Lease</button>
+            <button id="btn-sample-image" class="btn btn-chip btn-chip-accent" type="button">
+              Scanned Clause (PNG)
+            </button>
+            <label class="btn btn-chip file-upload-label">
+              Upload Image
+              <input id="input-image-file" type="file" accept="image/png,image/jpeg" hidden />
+            </label>
+          </div>
+
+          <div id="image-preview-box" class="image-preview hidden">
+            <img id="image-preview-el" alt="Attached contract clause scan" />
+            <div class="image-preview-meta">
+              <strong id="image-preview-name">Scanned clause attached</strong>
+              <span>Multimodal JPEG/PNG input for on-device or hybrid audit</span>
+            </div>
+            <button id="btn-clear-image" class="btn btn-xs" type="button">Remove</button>
+          </div>
+
+          <div class="editor-tabs">
+            <button id="tab-raw" class="tab-btn active" type="button">Original Contract</button>
+            <button id="tab-redacted" class="tab-btn" type="button">
+              Redacted Payload Preview
+            </button>
+            <span id="redaction-summary" class="redaction-summary">0 entities masked</span>
+          </div>
+
+          <textarea
+            id="contract-input"
+            class="contract-textarea"
+            rows="14"
+            placeholder="Paste an NDA, SaaS agreement, contractor terms, or lease here..."
+          ></textarea>
+          <pre id="redacted-preview" class="redacted-preview hidden"></pre>
+
+          <div class="shield-controls">
+            <label class="checkbox-row">
+              <input id="chk-redact-pii" type="checkbox" checked />
+              <span>
+                <strong>Local PII Shield:</strong> Mask party names, emails, addresses, tax/bank IDs, phones &amp; dollar amounts locally before any cloud call, then rehydrate redlines on-device.
+              </span>
+            </label>
+            <div id="entity-chips" class="entity-chips"></div>
+          </div>
+
+          <div class="action-bar">
+            <button id="btn-run-audit" class="btn btn-primary" type="button">
+              Run Hybrid Audit
+            </button>
+            <button id="btn-run-ondevice" class="btn btn-secondary" type="button">
+              Force On-Device Scan
+            </button>
+            <span id="remote-config-badge" class="telemetry-sub">
+              Cloud fallback: gemini-3.5-flash-lite
+            </span>
+          </div>
+        </section>
+
+        <section class="panel panel-output">
+          <div class="panel-header">
+            <div>
+              <h2>2. Audit Findings &amp; Rehydrated Redlines</h2>
+              <p class="panel-desc">
+                Structured risk breakdown using Firebase AI Logic schemas, rehydrated locally with original party names.
+              </p>
+            </div>
+            <div class="output-actions">
+              <button id="btn-save-firestore" class="btn btn-secondary btn-sm" type="button" disabled>
+                Save Summary to Firestore
+              </button>
+              <button id="btn-export-md" class="btn btn-secondary btn-sm" type="button" disabled>
+                Export Markdown
+              </button>
+            </div>
+          </div>
+
+          <div id="status-banner" class="status-banner hidden"></div>
+
+          <div id="empty-state" class="empty-state">
+            <h3>Ready to Audit</h3>
+            <p>
+              Select a sample contract or paste your own text, then click <strong>Run Hybrid Audit</strong>.
+              When Gemini Nano 4 is available in desktop Chrome (v139+), ClauseGuard executes directly on your CPU/GPU.
+              If the local model is unavailable or you request deep cloud redlining, Firebase AI Logic routes only the PII-redacted payload to Gemini.
+            </p>
+          </div>
+
+          <div id="results-container" class="results-container hidden">
+            <div class="score-card">
+              <div class="score-ring">
+                <span id="result-score" class="score-number">0</span>
+                <span class="score-max">/100</span>
+              </div>
+              <div class="score-details">
+                <div class="score-title-row">
+                  <h3>Overall Contract Risk</h3>
+                  <span id="result-level" class="pill pill-neutral">—</span>
+                  <span id="result-source-tag" class="pill pill-neutral">—</span>
+                </div>
+                <p id="result-summary" class="executive-summary"></p>
+              </div>
+            </div>
+
+            <div class="section-block">
+              <h3>Flagged Clauses &amp; Suggested Redlines</h3>
+              <div id="clauses-list" class="clauses-list"></div>
+            </div>
+
+            <div class="section-block">
+              <h3>Missing Standard Protections</h3>
+              <ul id="missing-list" class="missing-list"></ul>
+            </div>
+          </div>
+
+          <div class="section-block firestore-block">
+            <div class="firestore-header">
+              <h3>Firestore Audit Log (PII-Free Metadata Only)</h3>
+              <span id="firestore-status" class="telemetry-sub">Not connected</span>
+            </div>
+            <div id="firestore-log-list" class="firestore-log-list">
+              <p class="muted-note">
+                Configure a Firebase project to persist redacted risk scores and execution telemetry in Cloud Firestore.
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="config-dialog" class="modal">
+      <form id="config-form" method="dialog" class="modal-card">
+        <div class="modal-header">
+          <h3>Firebase Project &amp; App Check Configuration</h3>
+          <button id="btn-close-config" class="btn btn-xs" type="button">Close</button>
+        </div>
+        <p class="modal-desc">
+          Values can be supplied via <code>.env</code> (<code>VITE_FIREBASE_*</code>) or pasted here for browser testing (stored locally in <code>localStorage</code>).
+        </p>
+
+        <div class="form-grid">
+          <label>
+            API Key
+            <input id="cfg-apiKey" type="text" placeholder="AIza..." />
+          </label>
+          <label>
+            Auth Domain
+            <input id="cfg-authDomain" type="text" placeholder="project-id.firebaseapp.com" />
+          </label>
+          <label>
+            Project ID
+            <input id="cfg-projectId" type="text" placeholder="your-firebase-project-id" />
+          </label>
+          <label>
+            App ID
+            <input id="cfg-appId" type="text" placeholder="1:123456:web:abcdef" />
+          </label>
+          <label>
+            reCAPTCHA v3 Site Key (App Check Prod)
+            <input id="cfg-recaptchaKey" type="text" placeholder="Optional for local debug token" />
+          </label>
+          <label>
+            App Check Debug Mode (Localhost / Judges)
+            <select id="cfg-debugAppCheck">
+              <option value="true">Enabled (self.FIREBASE_APPCHECK_DEBUG_TOKEN = true)</option>
+              <option value="false">Disabled (Use reCAPTCHA v3)</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button id="btn-clear-config" class="btn btn-secondary" type="button">Reset</button>
+          <button class="btn btn-primary" type="submit">Save &amp; Reinitialize Firebase</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

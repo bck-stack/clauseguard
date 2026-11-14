@@ -1,0 +1,22 @@
+{
+  "name": "clauseguard",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Zero-egress contract risk auditor and redline assistant powered by Firebase AI Logic hybrid inference.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "firebase": "^13.3.0"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.5"
+  }
+}
