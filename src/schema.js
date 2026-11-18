@@ -57,6 +57,20 @@ export const contractAuditJsonSchema = contractAuditSchema.toJSON();
  * @param {boolean} [hasImage]
  * @returns {string}
  */
+// Small on-device models sometimes return list items as enum-like tokens with stray brackets ("[AUTO_RENEWAL").
+// Balanced placeholders such as [PARTY_1] are left alone; they are restored to real names later.
+export function cleanProtection(item) {
+  let t = String(item ?? "").trim();
+  if (/^\[[^\]]*$/.test(t)) t = t.slice(1);
+  if (/^[^[]*\]$/.test(t)) t = t.slice(0, -1);
+  t = t.replace(/^["'`]+|["'`]+$/g, "").trim();
+  if (/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/.test(t) || (/^[A-Z]{4,}$/.test(t))) {
+    t = t.toLowerCase().replace(/_/g, " ");
+    t = t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  return t;
+}
+
 export function buildAuditPrompt(contractText, rubricNote = "", hasImage = false) {
   const parts = [
     "You are ClauseGuard, an adversarial commercial contract reviewer.",
@@ -133,7 +147,7 @@ export function normalizeAuditPayload(rawOutput) {
     : [];
 
   const missingProtections = Array.isArray(parsed.missingProtections)
-    ? parsed.missingProtections.map((item) => String(item)).filter(Boolean)
+    ? parsed.missingProtections.map(cleanProtection).filter(Boolean)
     : [];
 
   return {

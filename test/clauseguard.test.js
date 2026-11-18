@@ -263,3 +263,14 @@ describe("Firebase AI Logic Hybrid Execution", () => {
     expect(output.telemetry.cloudPayloadBytes).toBe(0);
   });
 });
+
+import { cleanProtection } from "../src/schema.js";
+describe("missing protections from a small model", () => {
+  it("drops stray brackets and turns enum tokens into words, keeps placeholders and acronyms", () => {
+    expect(cleanProtection("[AUTO_RENEWAL")).toBe("Auto renewal");
+    expect(cleanProtection("PAYMENT")).toBe("Payment");
+    expect(cleanProtection("IP")).toBe("IP");
+    expect(cleanProtection("Cure period for [PARTY_1]")).toBe("Cure period for [PARTY_1]");
+    expect(cleanProtection('"Liability cap"')).toBe("Liability cap");
+  });
+});
