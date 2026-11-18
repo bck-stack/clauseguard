@@ -1,5 +1,5 @@
 import { initializeApp, getApps, deleteApp } from "firebase/app";
-import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 import {
   getAI,
   getGenerativeModel,
@@ -159,7 +159,7 @@ export async function initFirebaseServices(configOverride = null) {
     globalThis.self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
     try {
       initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider(
+        provider: new ReCaptchaEnterpriseProvider(
           cfg.recaptchaSiteKey || "localhost-debug-provider"
         ),
         isTokenAutoRefreshEnabled: true,
@@ -171,10 +171,10 @@ export async function initFirebaseServices(configOverride = null) {
   } else if (cfg.recaptchaSiteKey) {
     try {
       initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider(cfg.recaptchaSiteKey),
+        provider: new ReCaptchaEnterpriseProvider(cfg.recaptchaSiteKey),
         isTokenAutoRefreshEnabled: true,
       });
-      appCheckStatus = "recaptcha-v3";
+      appCheckStatus = "recaptcha-enterprise";
     } catch {
       appCheckStatus = "error";
     }

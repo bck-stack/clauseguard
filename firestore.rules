@@ -1,0 +1,26 @@
+rules_version = '2';
+// Only the PII-free audit summary may be written (src/firebase-hybrid.js saveAuditSummaryToFirestore), with fixed fields and
+// types and the server time; nothing can be changed or deleted afterwards. The history panel reads the newest few.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /audit_logs/{id} {
+      allow get: if true;
+      allow list: if request.query.limit <= 50;
+      allow create: if request.resource.data.keys().hasOnly(['overallRiskScore', 'riskLevel', 'clauseCount', 'inferenceSource', 'mode', 'latencyMs', 'totalMasked', 'rawPiiBytesSent', 'modelLabel', 'createdAt'])
+        && request.resource.data.overallRiskScore is number && request.resource.data.overallRiskScore >= 0 && request.resource.data.overallRiskScore <= 100
+        && request.resource.data.riskLevel is string && request.resource.data.riskLevel.size() <= 20
+        && request.resource.data.clauseCount is number && request.resource.data.clauseCount <= 500
+        && request.resource.data.inferenceSource is string && request.resource.data.inferenceSource.size() <= 20
+        && request.resource.data.mode is string && request.resource.data.mode.size() <= 30
+        && request.resource.data.latencyMs is number
+        && request.resource.data.totalMasked is number
+        && request.resource.data.rawPiiBytesSent is number
+        && request.resource.data.modelLabel is string && request.resource.data.modelLabel.size() <= 60
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

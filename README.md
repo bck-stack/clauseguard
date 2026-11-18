@@ -46,7 +46,7 @@ npm run dev
 
 ### Firebase
 1. Create a project (the free Spark plan is enough) and turn on AI Logic with the Gemini Developer API.
-2. Turn on App Check and enforce it for AI Logic: a reCAPTCHA v3 key for a hosted build, or the debug provider on localhost
+2. Turn on App Check and enforce it for AI Logic: a reCAPTCHA Enterprise (Fraud Defense) site key for a hosted build, or the debug provider on localhost
    (switch on debug mode in the app's Firebase Config dialog or in `.env`, then add the printed token under App Check → Manage
    debug tokens; do not commit it).
 3. Turn on Firestore and, if you want the overrides, Remote Config (`fallback_cloud_model`, `risk_rubric_note`).
