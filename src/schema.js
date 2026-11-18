@@ -64,6 +64,8 @@ export function cleanProtection(item) {
   if (/^\[[^\]]*$/.test(t)) t = t.slice(1);
   if (/^[^[]*\]$/.test(t)) t = t.slice(0, -1);
   t = t.replace(/^["'`]+|["'`]+$/g, "").trim();
+  const wrapped = /^\[(.+)\]$/.exec(t);
+  if (wrapped && !/^[A-Z]+_\d+$/.test(wrapped[1])) t = wrapped[1].trim();
   if (/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/.test(t) || (/^[A-Z]{4,}$/.test(t))) {
     t = t.toLowerCase().replace(/_/g, " ");
     t = t.charAt(0).toUpperCase() + t.slice(1);

@@ -272,5 +272,7 @@ describe("missing protections from a small model", () => {
     expect(cleanProtection("IP")).toBe("IP");
     expect(cleanProtection("Cure period for [PARTY_1]")).toBe("Cure period for [PARTY_1]");
     expect(cleanProtection('"Liability cap"')).toBe("Liability cap");
+    expect(cleanProtection("[Indemnification provisions]")).toBe("Indemnification provisions");
+    expect(cleanProtection("[PARTY_1]")).toBe("[PARTY_1]");
   });
 });
