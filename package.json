@@ -2,7 +2,7 @@
   "name": "clauseguard",
   "version": "1.0.0",
   "private": false,
-  "description": "Zero-egress contract risk auditor and redline assistant powered by Firebase AI Logic hybrid inference.",
+  "description": "Browser contract review with on-device Gemini Nano and a redacted cloud fallback through Firebase AI Logic.",
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {

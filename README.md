@@ -1,73 +1,38 @@
 # ClauseGuard
 
-**Zero-Egress On-Device Contract Risk Auditor & Hybrid Cloud Redline Assistant**
+A contract review tool for the browser. Paste a contract (or attach a photo of a clause) and it lists risky clauses with a
+suggested redline for each. It runs on Chrome's built-in Gemini Nano when available, and falls back to cloud Gemini through
+Firebase AI Logic when it is not. Before anything goes to the cloud, names, amounts, addresses and IDs are replaced with
+placeholders in the browser, and put back into the results afterwards.
 
-Built for **Firebase `#BuildHybridAI` 2026** using **Firebase AI Logic Hybrid Inference (`firebase/ai`)**, **Chrome Gemini Nano (Prompt API)**, **Firebase App Check**, **Firebase Remote Config**, and **Cloud Firestore**.
+Built for the Firebase #BuildHybridAI 2026 hackathon.
 
-## Why Hybrid Inference Matters for Legal Contracts
-
-Standard cloud-only AI contract reviewers force users to paste confidential counterparty names, pricing, addresses, tax IDs, and IBANs straight into remote LLM endpoints. Meanwhile, local-only models are unavailable on unsupported browsers or hit context limits on multi-page agreements.
-
-ClauseGuard solves both halves in a single `firebase/ai` pipeline:
-
-1. **Local Privacy Shield + On-Device First (`InferenceMode.ONLY_ON_DEVICE` / `PREFER_ON_DEVICE`):**
-   - When Gemini Nano is available in desktop Chrome (v139+), ClauseGuard audits contracts and photographed clause exhibits (JPEG/PNG multimodal input) directly on-device with **0 bytes of contract text sent to any server**.
-   - Before any cloud fallback runs, a deterministic client-side redactor (`src/redactor.js`) masks counterparty names (`[PARTY_1]`), emails (`[EMAIL_1]`), street addresses (`[ADDRESS_1]`), monetary amounts (`[AMOUNT_1]`), phone numbers (`[PHONE_1]`), and tax/bank IDs (`[ID_1]`).
-2. **Seamless Cloud Fallback + Local Rehydration:**
-   - If the browser lacks Gemini Nano or the user selects `PREFER_IN_CLOUD` for deeper multi-clause redline drafting, `firebase/ai` automatically falls back to Gemini (`gemini-3.5-flash-lite` or Remote Config override) using **only the redacted contract text**.
-   - Returned findings and suggested redlines are rehydrated locally in the browser back to the real party names and amounts.
-
-## Architecture
+## How it works
 
 ```text
-Contract Text / Clause Image (PNG/JPEG)
-  │
-  ├─► Local PII Shield (src/redactor.js)
-  │     ├─ Keeps raw PII in browser memory only
-  │     └─ Produces redacted payload ([PARTY_1], [AMOUNT_1], ...)
-  │
-  ├─► Firebase AI Logic Hybrid SDK (src/firebase-hybrid.js)
-  │     ├─ InferenceMode.ONLY_ON_DEVICE  ──► Chrome Gemini Nano 4 (0 bytes egress)
-  │     ├─ InferenceMode.PREFER_ON_DEVICE ──► Nano first, cloud fallback if unavailable
-  │     └─ InferenceMode.PREFER_IN_CLOUD ──► Cloud Gemini via GoogleAIBackend + App Check
-  │
-  ├─► Local Rehydration (src/redactor.js)
-  │     └─ Restores [PARTY_1], [AMOUNT_1] in findings & redline drafts locally
-  │
-  └─► Firebase Platform Services
-        ├─ App Check (reCAPTCHA v3 / Debug Token enforced for AI Logic)
-        ├─ Remote Config (dynamic risk rubric & fallback model name)
-        └─ Cloud Firestore (stores PII-free audit metadata & telemetry only)
+contract text or clause image
+  -> src/redactor.js        masks names, emails, addresses, amounts, phone numbers, tax/bank IDs ([PARTY_1], [AMOUNT_1], ...);
+                            the originals stay in browser memory
+  -> src/firebase-hybrid.js firebase/ai with one of the InferenceMode values:
+                              ONLY_ON_DEVICE    Gemini Nano in Chrome, nothing leaves the machine
+                              PREFER_ON_DEVICE  Nano first, cloud if Nano is not available
+                              PREFER_IN_CLOUD   cloud Gemini (GoogleAIBackend, App Check), redacted text only
+                              ONLY_IN_CLOUD
+  -> src/redactor.js        puts the real names and amounts back into findings and redlines
+  -> Firestore              stores score, risk level, clause counts and which side ran (no contract text)
 ```
 
-## Features
+The cloud model defaults to `gemini-3.5-flash-lite` and can be changed with the Remote Config key `fallback_cloud_model`.
+Both paths are asked for the same JSON shape (`src/schema.js`): `responseSchema` for the cloud call, `responseConstraint` for
+the on-device call. The top bar shows `LanguageModel.availability()`, the model download progress, and for each run
+`inferenceSource` (`ON_DEVICE` or `IN_CLOUD`), the time taken and a counter of raw personal data sent out.
 
-- **Live Hybrid Inference Telemetry Bar:** Inspect Chrome `LanguageModel.availability()`, trigger on-device model downloads with progress tracking, switch between all four `InferenceMode` values, and verify the exact execution source (`result.response.inferenceSource` -> `ON_DEVICE` vs `IN_CLOUD`), latency, and raw PII bytes sent.
-- **Multimodal Clause Auditing:** Attach a photographed or scanned contract clause (PNG/JPEG) or generate the built-in scanned exhibit image to test multimodal on-device/hybrid analysis.
-- **Structured JSON Output (`Schema`):** Uses `firebase/ai` `Schema` helpers (`inCloudParams.generationConfig.responseSchema` and `onDeviceParams.promptOptions.responseConstraint`) so both local and cloud responses follow the same typed JSON contract.
-- **Four Trap-Laden Sample Contracts:** Mutual NDA, SaaS MSA, Independent Contractor Agreement, and Commercial Lease.
-- **PII-Free Firestore Audit Log:** Persists only overall score, risk level, clause counts, and inference source without ever storing contract text or sensitive entities.
+Four sample contracts with deliberate problems are included: a mutual NDA, a SaaS MSA, an independent contractor agreement
+and a commercial lease.
 
-## Local Setup & Judging Verification
+## Running it
 
-### 1. Prerequisites
-- Node.js 20+
-- Desktop Google Chrome **v139+** for on-device Gemini Nano inference (optional — cloud fallback works in any modern browser once Firebase is configured).
-
-### 2. Enable On-Device Gemini Nano in Chrome (Optional for Local Execution)
-1. Open `chrome://flags/#prompt-api-for-gemini-nano-multimodal-input` and set it to **Enabled**, then restart Chrome.
-2. Open DevTools Console and check `await LanguageModel.availability()`. If it returns `downloadable`, click **Download Model** in ClauseGuard's top telemetry bar.
-
-### 3. Configure Firebase
-1. Create a project in the Firebase Console on the free Spark plan.
-2. Enable **Firebase AI Logic** (`AI Logic` -> Get Started -> Gemini Developer API).
-3. Enable **Firebase App Check** and enforce it on Firebase AI Logic:
-   - Register a **reCAPTCHA v3** site key for production hosting, or use the **Debug Provider** for localhost testing.
-   - To use a debug token locally, enable debug mode in ClauseGuard's **Firebase Config** modal (or `.env`) and add the logged UUID in *Firebase Console -> App Check -> Apps -> Manage debug tokens*. Never commit debug tokens to git.
-4. Enable **Cloud Firestore** and **Firebase Remote Config** (optional Remote Config keys: `fallback_cloud_model`, `risk_rubric_note`).
-5. Copy `.env.example` to `.env` and fill in your Firebase Web App credentials, or click **Firebase Config** directly in the app header to save settings in `localStorage`.
-
-### 4. Run & Test
+Needs Node.js 20+. Gemini Nano needs desktop Chrome 139 or later; without it the cloud path still works once Firebase is set up.
 
 ```bash
 npm install
@@ -75,12 +40,21 @@ npm test
 npm run dev
 ```
 
-To build for production or deploy to Firebase Hosting:
+### Gemini Nano in Chrome (optional)
+1. Enable `chrome://flags/#prompt-api-for-gemini-nano-multimodal-input` and restart Chrome.
+2. In the DevTools console, `await LanguageModel.availability()`. If it says `downloadable`, press Download Model in the app's top bar.
 
-```bash
-npm run build
-```
+### Firebase
+1. Create a project (the free Spark plan is enough) and turn on AI Logic with the Gemini Developer API.
+2. Turn on App Check and enforce it for AI Logic: a reCAPTCHA v3 key for a hosted build, or the debug provider on localhost
+   (switch on debug mode in the app's Firebase Config dialog or in `.env`, then add the printed token under App Check → Manage
+   debug tokens; do not commit it).
+3. Turn on Firestore and, if you want the overrides, Remote Config (`fallback_cloud_model`, `risk_rubric_note`).
+4. Copy `.env.example` to `.env` and fill in the web app config, or enter it in the app's Firebase Config dialog (kept in
+   `localStorage`).
+
+`npm run build` produces the static site in `dist/` for Firebase Hosting.
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE).
+Apache License 2.0, see [LICENSE](LICENSE).
